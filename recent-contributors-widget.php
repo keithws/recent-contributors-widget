@@ -141,16 +141,18 @@ class recent_contributors_widget extends WP_Widget {
 			if( $linkdestination == 'posts_list' ) {
 				$link = get_author_posts_url( $author->ID );
 				$link_rel = "";
+				$link_title = __("Posts by $author->display_name", 'recent-contributors-widget');
 			} elseif( $linkdestination == 'website' ) {
 				$link = get_the_author_meta( 'user_url', $author->ID );
 				$link_rel = "external nofollow";
+				$link_title = __("$author->display_name's Website", 'recent-contributors-widget');
 			}
 		?>
 			<li>
 				<div class="recent-contributor vcard">
 				<?php if( $avatar ): ?>
 					<?php if( $link ): ?>
-						<a class="url" href="<?php echo $link; ?>"><?php echo $avatar; ?></a>
+						<a class="url" href="<?php echo $link; ?>" title="<?php echo $link_title; ?>"><?php echo $avatar; ?></a>
 					<?php else: ?>
 						<?php echo $avatar; ?>
 					<?php endif; ?>
@@ -159,7 +161,7 @@ class recent_contributors_widget extends WP_Widget {
 					<span class="fn n">
 						<span class="screen-reader-text"><?php _e( 'Author ', 'recent-contributors-widget' ); ?></span>
 						<?php if( $link ): ?>
-							<a href="<?php echo $link; ?>" rel="<?php echo $link_rel; ?>" class="url"><?php echo $name; ?></a>
+							<a href="<?php echo $link; ?>" title="<?php echo $link_title; ?>" rel="<?php echo $link_rel; ?>" class="url"><?php echo $name; ?></a>
 						<?php else: ?>
 							<?php echo $name; ?>
 						<?php endif; ?>
