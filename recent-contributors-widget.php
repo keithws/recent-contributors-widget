@@ -103,6 +103,7 @@ class recent_contributors_widget extends WP_Widget {
 				while($query->have_posts()) {
 					$query->the_post();
 					$author->last_post = get_the_date('U');
+					$author->found_posts = $query->found_posts;
 				}
 				wp_reset_postdata();
 			} else {
@@ -167,7 +168,7 @@ class recent_contributors_widget extends WP_Widget {
 				<?php if( $postcount ): ?>
 					<span class="post-count">
 						<span class="screen-reader-text"><?php _e( 'Post count ', 'recent-contributors-widget' ); ?></span>
-						(<?php echo $query->post_count; ?>)
+						(<?php echo $author->found_posts; ?>)
 					</span>
 				<?php endif; ?>
 				</div>
