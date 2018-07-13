@@ -3,8 +3,8 @@ Contributors: thewanderingbrit
 Donate link: https://www.theukedge.com/donate/?utm_source=wordpress.org&utm_medium=plugin&utm_campaign=donate
 Tags: authors, recent, contributors, widget, month, week, day
 Requires at least: 3.7
-Tested up to: 4.5.2
-Stable tag: 1.2
+Tested up to: 4.9.7
+Stable tag: 1.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,16 @@ Probably. The best thing to do is to create a new feature request on [GitHub](ht
 2. The widget control panel
 
 == Changelog ==
+
+= 1.3 =
+
+Release date: July 13, 2018
+
+* Order contributors by date of last post, reverse-cronological
+* Add option to show/hide the contributor’s avatar
+* Add option to show/hide the contributor’s name
+* Add option to blacklist users from the recent contributors list by user id
+* Update call to get users to filter out subscribers and limit the fields returned to only those needed
 
 = 1.2 =
 

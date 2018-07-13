@@ -58,6 +58,9 @@ class recent_contributors_widget extends WP_Widget {
 		$timestring = $instance['timestring']; // How recent to pull contributors from
 		$linkdestination = $instance['linkdestination']; // Where to link author name to
 		$postcount = $instance['postcount']; // Whether to show number of posts by each author
+		$showavatar = $instance['showavatar']; // Whether to show the author's avatar
+		$showname = $instance['showname']; // whether to show the author's name
+		$blacklist = array_map('trim', explode(',', $instance['blacklist'])); // user IDs to exclude
 
 	// Before widget //
 
@@ -69,43 +72,114 @@ class recent_contributors_widget extends WP_Widget {
 
 	// Widget output //
 
+	// get default avatar size
+	$recent_contributors_avatar_size = apply_filters( 'recent_contributors_avatar_size', 48 );
+
 		// get all contributors and their display names
-		$allauthors = get_users();
-		$i = 0;
-		foreach( $allauthors as $author ) {
-			$authorlist[$i]['id'] = $author->data->ID;
-			$authorlist[$i]['name'] = $author->data->display_name;
-			$i++;
-		} ?>
+		$args = array(
+			'orderby'      => 'ID',
+			'order'        => 'ASC',
+			'exclude'      => $blacklist,
+			'fields'       => ['ID', 'display_name'],
+			'who'          => 'authors'
+		);
+		$authors = get_users( $args );
+		?>
 
 		<ul>
 		<?php
 		// check whether a user has contributed in the time specified
-		foreach( $authorlist as $author ) {
+		// and save the date of their last post
+		foreach( $authors as $key => &$author ) {
+
 			$args = array(
-					'author' => $author['id'],
-					'date_query' => array(
-						'after' => $timestring
-					)
-				 );
+				'author'         => $author->ID,
+				'date_query'     => array( 'after' => $timestring ),
+				'posts_per_page' => 1
+			);
 			$query = new WP_Query( $args );
 
-			if( $query->have_posts() ) { ?>
-					<li>
-						<?php if( $linkdestination == 'posts_list' ) {
-							echo '<a href="'. get_author_posts_url( $author['id'] ) .'">' . $author['name'] . '</a>';
-						} elseif( $linkdestination == 'website' ) {
-							echo '<a href="'. get_the_author_meta( 'user_url', $author['id'] ) .'">' . $author['name'] . '</a>';
-						} else {
-							echo $author['name'];
-						}
-						if( $postcount == 1 ) { ?>
-						 (<?php echo $query->post_count; ?>)
-						<?php } ?>
-					</li>
-				<?php wp_reset_postdata();
+			if( $query->have_posts() ) {
+				while($query->have_posts()) {
+					$query->the_post();
+					$author->last_post = get_the_date('U');
+				}
+				wp_reset_postdata();
+			} else {
+				unset($authors[$key]);
 			}
-		} ?>
+
+		}
+
+		// sort authors by date of last post, reverse chronological
+		uasort( $authors, function ( $a, $b ) {
+
+			if( $b->last_post > $a->last_post ) {
+				return 1;
+			} elseif( $b->last_post < $a->last_post ) {
+				return -1;
+			} else {
+				return 0;
+			}
+
+		} );
+
+		// render the HTML for the widget
+		$count = 0;
+		foreach( $authors as $author ) {
+
+			$count++;
+			$avatar = $name = $link = "";
+
+			if( $showavatar ) {
+				$avatar = get_avatar( $author->ID, $recent_contributors_avatar_size, null, $author->display_name );
+			}
+			if( $showname ) {
+				$name = $author->display_name;
+			}
+			if( $linkdestination == 'posts_list' ) {
+				$link = get_author_posts_url( $author->ID );
+				$link_rel = "";
+			} elseif( $linkdestination == 'website' ) {
+				$link = get_the_author_meta( 'user_url', $author->ID );
+				$link_rel = "external nofollow";
+			}
+		?>
+			<li>
+				<div class="recent-contributor vcard">
+				<?php if( $avatar ): ?>
+					<?php if( $link ): ?>
+						<a class="url" href="<?php echo $link; ?>"><?php echo $avatar; ?></a>
+					<?php else: ?>
+						<?php echo $avatar; ?>
+					<?php endif; ?>
+				<?php endif; ?>
+				<?php if( $name ): ?>
+					<span class="fn n">
+						<span class="screen-reader-text"><?php _e( 'Author ', 'recent-contributors-widget' ); ?></span>
+						<?php if( $link ): ?>
+							<a href="<?php echo $link; ?>" rel="<?php echo $link_rel; ?>" class="url"><?php echo $name; ?></a>
+						<?php else: ?>
+							<?php echo $name; ?>
+						<?php endif; ?>
+					</span>
+				<?php endif; ?>
+				<?php if( $postcount ): ?>
+					<span class="post-count">
+						<span class="screen-reader-text"><?php _e( 'Post count ', 'recent-contributors-widget' ); ?></span>
+						(<?php echo $query->post_count; ?>)
+					</span>
+				<?php endif; ?>
+				</div>
+			</li>
+		<?php } ?>
+		<?php if( $count === 0): ?>
+			<li>
+				<p>
+					<?php _e( 'No recent contributors.', 'recent-contributors-widget' ); ?>
+				</p>
+			</li>
+		<?php endif; ?>
 		</ul>
 		<?php
 
@@ -122,6 +196,9 @@ class recent_contributors_widget extends WP_Widget {
 			$instance['timestring'] = strip_tags($new_instance['timestring']);
 			$instance['linkdestination'] = strip_tags($new_instance['linkdestination']);
 			$instance['postcount'] = strip_tags($new_instance['postcount']);
+			$instance['showavatar'] = strip_tags($new_instance['showavatar']);
+			$instance['showname'] = strip_tags($new_instance['showname']);
+			$instance['blacklist'] = strip_tags($new_instance['blacklist']);
 		return $instance;
 	}
 
@@ -129,7 +206,7 @@ class recent_contributors_widget extends WP_Widget {
 
 	function form($instance) {
 
-		$defaults = array( 'title' => 'Recent Contributors', 'timestring' => '30 days ago', 'linkdestination' => 'none', 'postcount' => 1 );
+		$defaults = array( 'title' => 'Recent Contributors', 'timestring' => '30 days ago', 'linkdestination' => 'none', 'showavatar' => 0, 'showname' => 1, 'postcount' => 1, 'blacklist' => '');
 		$instance = wp_parse_args( (array) $instance, $defaults ); ?>
 
 		<p>
@@ -149,9 +226,21 @@ class recent_contributors_widget extends WP_Widget {
 			</select>
 		</p>
 		<p>
+			<input id="<?php echo $this->get_field_id('showavatar'); ?>" name="<?php echo $this->get_field_name('showavatar'); ?>" type="checkbox" value="1" <?php checked( '1', $instance['showavatar'] ); ?>/>
+			<label for="<?php echo $this->get_field_id('showavatar'); ?>"><?php _e('Display Avatar?'); ?></label>
+		</p>
+		<p>
+			<input id="<?php echo $this->get_field_id('showname'); ?>" name="<?php echo $this->get_field_name('showname'); ?>" type="checkbox" value="1" <?php checked( '1', $instance['showname'] ); ?>/>
+			<label for="<?php echo $this->get_field_id('showname'); ?>"><?php _e('Display Name?'); ?></label>
+		</p>
+		<p>
 			<input id="<?php echo $this->get_field_id('postcount'); ?>" name="<?php echo $this->get_field_name('postcount'); ?>" type="checkbox" value="1" <?php checked( '1', $instance['postcount'] ); ?>/>
 			<label for="<?php echo $this->get_field_id('postcount'); ?>"><?php _e('Display Post Count?'); ?></label>
         </p>
+		<p>
+			<label for="<?php echo $this->get_field_id('blacklist'); ?>"><?php _e('Blacklist User IDs', 'recent-contributors-widget'); ?>:</label>
+			<input class="widefat" id="<?php echo $this->get_field_id('blacklist'); ?>" name="<?php echo $this->get_field_name('blacklist'); ?>'" type="text" value="<?php echo $instance['blacklist']; ?>" />
+		</p>
 
 	<?php }
 
@@ -160,3 +249,13 @@ class recent_contributors_widget extends WP_Widget {
 // End class recent_contributors_widget
 
 add_action('widgets_init', create_function('', 'return register_widget("recent_contributors_widget");'));
+
+if( !is_admin() ) {
+
+	function recent_contributors_widget_scripts() {
+		wp_register_style( 'recent-contributors', plugins_url( '/recent-contributors.css' , __FILE__ ) );
+		wp_enqueue_style( 'recent-contributors' );
+	}
+	add_action( 'wp_enqueue_scripts', 'recent_contributors_widget_scripts' );
+
+}
